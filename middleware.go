@@ -62,7 +62,11 @@ func (b bufferedReadCloser) Close() error {
 	return b.closer.Close()
 }
 
-func Middleware(next func(w http.ResponseWriter, r *http.Request)) func(w http.ResponseWriter, r *http.Request) {
+// Middleware adds a logging middleware to the request handler stack. It adds a
+// request ID to the context and response header, logs the request, executes the
+// next http.HandlerFunc and logs the response. Logging for both request and
+// response body is limited to 2048 bytes.
+func Middleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		requestID := generateRequestID()
 		r = r.WithContext(context.WithValue(r.Context(), keyId, string(requestID)))
@@ -75,11 +79,11 @@ func Middleware(next func(w http.ResponseWriter, r *http.Request)) func(w http.R
 			Error(r.Context(), "unable to peek into buffered request body, cancelling request", request{r.Method, r.Header, *r.URL, r.Proto, ""})
 		}
 
-		Info(r.Context(), "request started", request{r.Method, r.Header, *r.URL, r.Proto, string(b)})
+		Info(r.Context(), "request received", request{r.Method, r.Header, *r.URL, r.Proto, string(b)})
 
 		br := newBufferedResponse(w)
 		next(br, r)
 
-		Info(r.Context(), "request finished", br.response)
+		Info(r.Context(), "response sent", br.response)
 	}
 }

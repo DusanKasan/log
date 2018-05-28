@@ -13,6 +13,8 @@ const keyId = id("request_ID")
 var random = rand.New(rand.NewSource(time.Now().UnixNano()))
 var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
 
+// GetRequestId returns request ID from the passed context. If it is not found,
+// return an empty string.
 func GetRequestId(ctx context.Context) string {
 	s, _ := ctx.Value(keyId).(string)
 	return s

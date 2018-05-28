@@ -54,11 +54,16 @@ func writeWithLevel(l level, ctx context.Context, data interface{}, restOfData .
 }
 
 func newFact(i interface{}) fact {
+	typ := reflect.TypeOf(i).PkgPath()
+	if typ != "" {
+		typ = typ + "."
+	}
+
 	f := fact{
-		reflect.TypeOf(i).String(),
+		typ + reflect.TypeOf(i).Name(),
 		data{i},
-		fmt.Sprintf("%v", i),
-		make(map[string]data),
+		fmt.Sprintf("%#v", i),
+		map[string]data{},
 	}
 
 	for name, convert := range converters {
@@ -66,7 +71,10 @@ func newFact(i interface{}) fact {
 		if err != nil {
 			fct = "UNABLE TO CONVERT: " + err.Error()
 		}
-		f.Converted[name] = data{fct}
+
+		if fct != nil {
+			f.Converted[name] = data{fct}
+		}
 	}
 
 	return f
@@ -74,8 +82,8 @@ func newFact(i interface{}) fact {
 
 type fact struct {
 	Type      string
-	Fact      data
-	String    string
+	Fact      data `json:"Marshaled"`
+	Printed   string
 	Converted map[string]data
 }
 
