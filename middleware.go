@@ -76,7 +76,7 @@ func Middleware(next http.HandlerFunc) http.HandlerFunc {
 		r.Body = buff
 		b, err := buff.Peek(2048)
 		if err != nil && err != io.EOF {
-			Error(r.Context(), "unable to peek into buffered request body, cancelling request", request{r.Method, r.Header, *r.URL, r.Proto, ""})
+			Error(r.Context(), "unable to peek into buffered request body", request{r.Method, r.Header, *r.URL, r.Proto, ""})
 		}
 
 		Info(r.Context(), "request received", request{r.Method, r.Header, *r.URL, r.Proto, string(b)})

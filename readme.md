@@ -11,7 +11,7 @@ First you wrap your handlers using the logging middleware like so:
 http.HandleFunc("/test", TestHandleFunc)
 
 // Into this
-http.HandleFunc("/test", log.Middleware(TestHandleFunc)
+http.HandleFunc("/test", log.Middleware(TestHandleFunc))
 ```
 
 Now you are logging the request/response and the request ID has been placed into the context for future use. So you're ready to log anywhere in your code (preferably where context is accessible so that you have request ID in the logs). Logging itself is pretty straightforward:
@@ -54,7 +54,7 @@ When logging an error with a serialization converter like this, a new entry will
 
 ```
 ...
-"Facts":[
+"Data":[
   {
      "Type":"*json.SyntaxError",
      "Marshaled":{
@@ -84,7 +84,7 @@ This example contains request, json unmarshaling error and response.
       "LineNumber":82,
       "FunctionName":"github.com/DusanKasan/log.Middleware.func1"
    },
-   "Facts":[
+   "Data":[
       {
          "Type":"string",
          "Marshaled":"request received",
@@ -94,7 +94,7 @@ This example contains request, json unmarshaling error and response.
          }
       },
       {
-         "Type":"github.com/DusanKasan/log.log.request",
+         "Type":"github.com/DusanKasan/log.request",
          "Marshaled":{
             "Method":"POST",
             "Header":{
@@ -141,7 +141,7 @@ This example contains request, json unmarshaling error and response.
       "LineNumber":78,
       "FunctionName":"github.com/DusanKasan/log.(*contextLogger).Info"
    },
-   "Facts":[
+   "Data":[
       {
          "Type":"*json.SyntaxError",
          "Marshaled":{
@@ -163,7 +163,7 @@ This example contains request, json unmarshaling error and response.
       "LineNumber":87,
       "FunctionName":"github.com/DusanKasan/log.Middleware.func1"
    },
-   "Facts":[
+   "Data":[
       {
          "Type":"string",
          "Marshaled":"response sent",
@@ -196,3 +196,4 @@ This example contains request, json unmarshaling error and response.
 
 - tests
 - document
+- remove skip frames?

@@ -9,10 +9,10 @@ import (
 	"time"
 )
 
-func writeWithLevel(l level, ctx context.Context, data interface{}, restOfData ...interface{}) {
+func serialize(l level, ctx context.Context, data interface{}, restOfData ...interface{}) []byte {
 	mergedData := append([]interface{}{data}, restOfData...)
 
-	pc, file, line, _ := runtime.Caller(2)
+	pc, file, line, _ := runtime.Caller(3)
 	fname := "UNKNOWN"
 	if fn := runtime.FuncForPC(pc); fn != nil {
 		fname = fn.Name()
@@ -32,34 +32,32 @@ func writeWithLevel(l level, ctx context.Context, data interface{}, restOfData .
 
 	for _, d := range mergedData {
 		if err, ok := d.(error); ok {
-			m.Facts = append(m.Facts, newFact(err))
+			m.Data = append(m.Data, newDataItem(err))
 			continue
 		}
 
-		m.Facts = append(m.Facts, newFact(d))
+		m.Data = append(m.Data, newDataItem(d))
 	}
 
 	b, err := json.Marshal(m)
 	if err != nil {
-		m.Facts = []fact{newFact("Unable to serialize log message"), newFact(err)}
+		m.Data = []dataItem{newDataItem("Unable to serialize log message"), newDataItem(err)}
 		b, err = json.Marshal(m)
 		if err != nil {
 			panic("unable to marshal secondary log message")
 		}
 	}
 
-	b = append(b, []byte("\n")...)
-
-	writer.Write(b)
+	return append(b, []byte("\n")...)
 }
 
-func newFact(i interface{}) fact {
+func newDataItem(i interface{}) dataItem {
 	typ := reflect.TypeOf(i).PkgPath()
 	if typ != "" {
 		typ = typ + "."
 	}
 
-	f := fact{
+	f := dataItem{
 		typ + reflect.TypeOf(i).Name(),
 		data{i},
 		fmt.Sprintf("%#v", i),
@@ -80,9 +78,9 @@ func newFact(i interface{}) fact {
 	return f
 }
 
-type fact struct {
+type dataItem struct {
 	Type      string
-	Fact      data `json:"Marshaled"`
+	Marshaled data
 	Printed   string
 	Converted map[string]data
 }
@@ -107,7 +105,7 @@ type message struct {
 	RequestID string
 	Message   string
 	Source    source
-	Facts     []fact
+	Data      []dataItem
 }
 
 type source struct {
