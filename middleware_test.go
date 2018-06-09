@@ -44,7 +44,7 @@ func TestMiddleware(t *testing.T) {
 
 	log.Middleware(handler)(response, request)
 
-	if requestID := response.Header().Get("Request-Id"); requestID == "" {
+	if requestID := response.Header().Get("X-Request-ID"); requestID == "" {
 		t.Errorf("request id not set in response header")
 	}
 

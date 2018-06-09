@@ -1,277 +1,320 @@
 package log_test
 
 import (
-	"testing"
-	"strings"
-	"time"
-	"encoding/json"
-	"fmt"
 	"github.com/DusanKasan/log"
 	"context"
+	"strings"
+	"fmt"
+	"encoding/json"
+	"time"
+	"testing"
+	log2 "log"
 )
 
-func TestInfo(t *testing.T) {
+type logMsg struct {
+	Time      time.Time
+	Level     string
+	RequestID string
+	Message   string
+	Source    struct{
+		FilePath     string
+		LineNumber   int
+		FunctionName string
+	}
+	Data      []struct{
+		Type      string
+		Marshaled interface{}
+		Printed   string
+		Converted map[string]interface{}
+	}
+}
+
+func ExampleInfo() {
 	logged := &strings.Builder{}
 	log.SetOutput(logged)
 
 	log.Info(context.Background(), "data")
 
-	logs, err := parseLogs(logged.String())
-	if err != nil {
-		t.Error(err)
-		return
+	jsonLogs := fmt.Sprintf("[%v]", strings.Join(strings.Split(strings.Trim(logged.String(), "\n"), "\n"), ","))
+	var logs []logMsg
+	if err := json.Unmarshal([]byte(jsonLogs), &logs); err != nil {
+		panic(err)
 	}
 
-	logs.expect(
-		t,
-		[]messageExpectation{
-			level("info"),
-			emptyRequestID(),
-			createdBetween(time.Now().Add(-1*time.Hour), time.Now()),
-			message("data"),
-			source("log_test.go", "github.com/DusanKasan/log_test.TestInfo", 17),
-			data([]dataItem{{"string",  "data", "\"data\"",nil}}),
-		},
-	)
+	fmt.Printf("Log messages recorded: %v\n", len(logs))
+	fmt.Printf("Message: %q\n", logs[0].Message)
+	fmt.Printf("Level: %q\n", logs[0].Level)
+	fmt.Printf("Created in last hour?: %v\n", logs[0].Time.After(time.Now().Add(-1*time.Hour))) // can't check dynamic value in an example
+	fmt.Printf("RequestID: %q\n", logs[0].RequestID) // will be empty because no request ID in context
+	fmt.Printf("Source:\n")
+	segments := strings.Split(logs[0].Source.FilePath, "/")
+	fmt.Printf("\tFile: %q\n", segments[len(segments)-1]) // only get the file name from path
+	fmt.Printf("\tLine number: %v\n", logs[0].Source.LineNumber)
+	fmt.Printf("\tFunction name: %q\n", logs[0].Source.FunctionName)
+	fmt.Printf("Data count: %v\n", len(logs[0].Data))
+	fmt.Printf("Data[0]:\n")
+	fmt.Printf("\tType: %q\n", logs[0].Data[0].Type)
+	fmt.Printf("\tMarshaled: %q\n", logs[0].Data[0].Marshaled)
+	fmt.Printf("\tPrinted: %q\n", logs[0].Data[0].Printed)
+	fmt.Printf("\tConverted: %q\n", logs[0].Data[0].Converted)
+
+	// Output:
+	// Log messages recorded: 1
+	// Message: "data"
+	// Level: "info"
+	// Created in last hour?: true
+	// RequestID: ""
+	// Source:
+	// 	File: "log_test.go"
+	// 	Line number: 36
+	// 	Function name: "github.com/DusanKasan/log_test.ExampleInfo"
+	// Data count: 1
+	// Data[0]:
+	// 	Type: "string"
+	// 	Marshaled: "data"
+	// 	Printed: "\"data\""
+	// 	Converted: map[]
 }
 
-func TestError(t *testing.T) {
+func ExampleError() {
 	logged := &strings.Builder{}
 	log.SetOutput(logged)
 
 	log.Error(context.Background(), "data")
 
-	logs, err := parseLogs(logged.String())
-	if err != nil {
-		t.Error(err)
-		return
+	jsonLogs := fmt.Sprintf("[%v]", strings.Join(strings.Split(strings.Trim(logged.String(), "\n"), "\n"), ","))
+	var logs []logMsg
+	if err := json.Unmarshal([]byte(jsonLogs), &logs); err != nil {
+		panic(err)
 	}
 
-	logs.expect(
-		t,
-		[]messageExpectation{
-			level("error"),
-			emptyRequestID(),
-			createdBetween(time.Now().Add(-1*time.Hour), time.Now()),
-			message("data"),
-			source("log_test.go", "github.com/DusanKasan/log_test.TestError", 42),
-			data([]dataItem{{"string",  "data", "\"data\"",nil}}),
-		},
-	)
+	fmt.Printf("Log messages recorded: %v\n", len(logs))
+	fmt.Printf("Message: %q\n", logs[0].Message)
+	fmt.Printf("Level: %q\n", logs[0].Level)
+	fmt.Printf("Created in last hour?: %v\n", logs[0].Time.After(time.Now().Add(-1*time.Hour))) // can't check dynamic value in an example
+	fmt.Printf("RequestID: %q\n", logs[0].RequestID) // will be empty because no request ID in context
+	fmt.Printf("Source:\n")
+	segments := strings.Split(logs[0].Source.FilePath, "/")
+	fmt.Printf("\tFile: %q\n", segments[len(segments)-1]) // only get the file name from path
+	fmt.Printf("\tLine number: %v\n", logs[0].Source.LineNumber)
+	fmt.Printf("\tFunction name: %q\n", logs[0].Source.FunctionName)
+	fmt.Printf("Data count: %v\n", len(logs[0].Data))
+	fmt.Printf("Data[0]:\n")
+	fmt.Printf("\tType: %q\n", logs[0].Data[0].Type)
+	fmt.Printf("\tMarshaled: %q\n", logs[0].Data[0].Marshaled)
+	fmt.Printf("\tPrinted: %q\n", logs[0].Data[0].Printed)
+	fmt.Printf("\tConverted: %q\n", logs[0].Data[0].Converted)
+
+	// Output:
+	// Log messages recorded: 1
+	// Message: "data"
+	// Level: "error"
+	// Created in last hour?: true
+	// RequestID: ""
+	// Source:
+	// 	File: "log_test.go"
+	// 	Line number: 83
+	// 	Function name: "github.com/DusanKasan/log_test.ExampleError"
+	// Data count: 1
+	// Data[0]:
+	// 	Type: "string"
+	// 	Marshaled: "data"
+	// 	Printed: "\"data\""
+	// 	Converted: map[]
 }
 
-func TestMultipleMessages(t *testing.T) {
-	logged := &strings.Builder{}
-	log.SetOutput(logged)
-
-	log.Info(context.Background(), "info data")
-	log.Error(context.Background(), "error data")
-
-	logs, err := parseLogs(logged.String())
-	if err != nil {
-		t.Error(err)
-		return
-	}
-
-	logs.expect(
-		t,
-		[]messageExpectation{
-			level("info"),
-			emptyRequestID(),
-			createdBetween(time.Now().Add(-1*time.Hour), time.Now()),
-			message("info data"),
-			source("log_test.go", "github.com/DusanKasan/log_test.TestMultipleMessages", 67),
-			data([]dataItem{{"string",  "info data", "\"info data\"",nil}}),
-		},
-		[]messageExpectation{
-			level("error"),
-			emptyRequestID(),
-			createdBetween(time.Now().Add(-1*time.Hour), time.Now()),
-			message("error data"),
-			source("log_test.go", "github.com/DusanKasan/log_test.TestMultipleMessages", 68),
-			data([]dataItem{{"string",  "error data", "\"error data\"",nil}}),
-		},
-	)
-}
-
-func TestGetWriter(t *testing.T) {
+func ExampleGetWriter() {
 	logged := &strings.Builder{}
 	log.SetOutput(logged)
 
 	w := log.GetWriter(log.LevelUnknown)
 	w.Write([]byte("data"))
 
-	logs, err := parseLogs(logged.String())
-	if err != nil {
-		t.Error(err)
-		return
+	jsonLogs := fmt.Sprintf("[%v]", strings.Join(strings.Split(strings.Trim(logged.String(), "\n"), "\n"), ","))
+	var logs []logMsg
+	if err := json.Unmarshal([]byte(jsonLogs), &logs); err != nil {
+		panic(err)
 	}
 
-	logs.expect(
-		t,
-		[]messageExpectation{
-			level("unknown"),
-			emptyRequestID(),
-			createdBetween(time.Now().Add(-1*time.Hour), time.Now()),
-			message("data"),
-			source("log_test.go", "github.com/DusanKasan/log_test.TestGetWriter", 102),
-			data([]dataItem{{"string",  "data", "\"data\"",nil}}),
-		},
-	)
+	fmt.Printf("Log messages recorded: %v\n", len(logs))
+	fmt.Printf("Message: %q\n", logs[0].Message)
+	fmt.Printf("Level: %q\n", logs[0].Level)
+	fmt.Printf("Created in last hour?: %v\n", logs[0].Time.After(time.Now().Add(-1*time.Hour))) // can't check dynamic value in an example
+	fmt.Printf("RequestID: %q\n", logs[0].RequestID) // will be empty because no request ID in context
+	fmt.Printf("Source:\n")
+	segments := strings.Split(logs[0].Source.FilePath, "/")
+	fmt.Printf("\tFile: %q\n", segments[len(segments)-1]) // only get the file name from path
+	fmt.Printf("\tLine number: %v\n", logs[0].Source.LineNumber)
+	fmt.Printf("\tFunction name: %q\n", logs[0].Source.FunctionName)
+	fmt.Printf("Data count: %v\n", len(logs[0].Data))
+	fmt.Printf("Data[0]:\n")
+	fmt.Printf("\tType: %q\n", logs[0].Data[0].Type)
+	fmt.Printf("\tMarshaled: %q\n", logs[0].Data[0].Marshaled)
+	fmt.Printf("\tPrinted: %q\n", logs[0].Data[0].Printed)
+	fmt.Printf("\tConverted: %q\n", logs[0].Data[0].Converted)
+
+	// Output:
+	// Log messages recorded: 1
+	// Message: "data"
+	// Level: "unknown"
+	// Created in last hour?: true
+	// RequestID: ""
+	// Source:
+	// 	File: "log_test.go"
+	// 	Line number: 131
+	// 	Function name: "github.com/DusanKasan/log_test.ExampleGetWriter"
+	// Data count: 1
+	// Data[0]:
+	// 	Type: "string"
+	// 	Marshaled: "data"
+	// 	Printed: "\"data\""
+	// 	Converted: map[]
 }
 
-func TestNew(t *testing.T) {
+func ExampleNew() {
 	logged := &strings.Builder{}
-	logger := log.New(logged)
 
+	logger := log.New(logged)
 	logger.Info(context.Background(), "data")
 
-	logs, err := parseLogs(logged.String())
-	if err != nil {
-		t.Error(err)
-		return
+	jsonLogs := fmt.Sprintf("[%v]", strings.Join(strings.Split(strings.Trim(logged.String(), "\n"), "\n"), ","))
+	var logs []logMsg
+	if err := json.Unmarshal([]byte(jsonLogs), &logs); err != nil {
+		panic(err)
 	}
 
-	logs.expect(
-		t,
-		[]messageExpectation{
-			level("info"),
-			emptyRequestID(),
-			createdBetween(time.Now().Add(-1*time.Hour), time.Now()),
-			message("data"),
-			source("log_test.go", "github.com/DusanKasan/log_test.TestNew", 127),
-			data([]dataItem{{"string",  "data", "\"data\"",nil}}),
-		},
-	)
+	fmt.Printf("Log messages recorded: %v\n", len(logs))
+	fmt.Printf("Message: %q\n", logs[0].Message)
+	fmt.Printf("Level: %q\n", logs[0].Level)
+	fmt.Printf("Created in last hour?: %v\n", logs[0].Time.After(time.Now().Add(-1*time.Hour))) // can't check dynamic value in an example
+	fmt.Printf("RequestID: %q\n", logs[0].RequestID) // will be empty because no request ID in context
+	fmt.Printf("Source:\n")
+	segments := strings.Split(logs[0].Source.FilePath, "/")
+	fmt.Printf("\tFile: %q\n", segments[len(segments)-1]) // only get the file name from path
+	fmt.Printf("\tLine number: %v\n", logs[0].Source.LineNumber)
+	fmt.Printf("\tFunction name: %q\n", logs[0].Source.FunctionName)
+	fmt.Printf("Data count: %v\n", len(logs[0].Data))
+	fmt.Printf("Data[0]:\n")
+	fmt.Printf("\tType: %q\n", logs[0].Data[0].Type)
+	fmt.Printf("\tMarshaled: %q\n", logs[0].Data[0].Marshaled)
+	fmt.Printf("\tPrinted: %q\n", logs[0].Data[0].Printed)
+	fmt.Printf("\tConverted: %q\n", logs[0].Data[0].Converted)
+
+	// Output:
+	// Log messages recorded: 1
+	// Message: "data"
+	// Level: "info"
+	// Created in last hour?: true
+	// RequestID: ""
+	// Source:
+	// 	File: "log_test.go"
+	// 	Line number: 178
+	// 	Function name: "github.com/DusanKasan/log_test.ExampleNew"
+	// Data count: 1
+	// Data[0]:
+	// 	Type: "string"
+	// 	Marshaled: "data"
+	// 	Printed: "\"data\""
+	// 	Converted: map[]
 }
 
-type logSource struct {
-	FilePath     string
-	LineNumber   int
-	FunctionName string
-}
+func ExampleAddDataSerializationConverter() {
+	logged := &strings.Builder{}
+	log.SetOutput(logged)
 
-type dataItem struct {
-	Type      string
-	Marshaled interface{}
-	Printed   string
-	Converted map[string]interface{}
-}
+	log.AddDataSerializationConverter("myconverter", func(i interface{}) (interface{}, error) {
+		if s, ok := i.(string); ok {
+			return "123" + s, nil
+		}
 
-type logMessage struct {
-	Time      time.Time
-	Level     string
-	RequestID string
-	Message   string
-	Source    logSource
-	Data      []dataItem
-}
+		return nil, nil
+	})
 
-type logMessages []logMessage
+	log.Info(context.Background(), "data", 1)
 
-type messageExpectation func(logMessage) []error
-
-func (l logMessages) expect(t *testing.T, expectations ...[]messageExpectation) {
-	if len(l) != len(expectations) {
-		t.Errorf("bad number of messages logged. expected: %v, got :%v", len(expectations), len(l))
-		return
+	jsonLogs := fmt.Sprintf("[%v]", strings.Join(strings.Split(strings.Trim(logged.String(), "\n"), "\n"), ","))
+	var logs []logMsg
+	if err := json.Unmarshal([]byte(jsonLogs), &logs); err != nil {
+		panic(err)
 	}
 
-	for i, msgExpectations := range expectations {
-		l[i].expect(t, msgExpectations...)
-	}
+	fmt.Printf("Log messages recorded: %v\n", len(logs))
+	fmt.Printf("Message: %q\n", logs[0].Message)
+	fmt.Printf("Level: %q\n", logs[0].Level)
+	fmt.Printf("Created in last hour?: %v\n", logs[0].Time.After(time.Now().Add(-1*time.Hour))) // can't check dynamic value in an example
+	fmt.Printf("RequestID: %q\n", logs[0].RequestID) // will be empty because no request ID in context
+	fmt.Printf("Source:\n")
+	segments := strings.Split(logs[0].Source.FilePath, "/")
+	fmt.Printf("\tFile: %q\n", segments[len(segments)-1]) // only get the file name from path
+	fmt.Printf("\tLine number: %v\n", logs[0].Source.LineNumber)
+	fmt.Printf("\tFunction name: %q\n", logs[0].Source.FunctionName)
+	fmt.Printf("Data count: %v\n", len(logs[0].Data))
+	fmt.Printf("Data[0]:\n")
+	fmt.Printf("\tType: %q\n", logs[0].Data[0].Type)
+	fmt.Printf("\tMarshaled: %q\n", logs[0].Data[0].Marshaled)
+	fmt.Printf("\tPrinted: %q\n", logs[0].Data[0].Printed)
+	fmt.Printf("\tConverted: %q\n", logs[0].Data[0].Converted)
+	fmt.Printf("Data[1]:\n")
+	fmt.Printf("\tType: %q\n", logs[0].Data[1].Type)
+	fmt.Printf("\tMarshaled: %v\n", logs[0].Data[1].Marshaled)
+	fmt.Printf("\tPrinted: %q\n", logs[0].Data[1].Printed)
+	fmt.Printf("\tConverted: %q\n", logs[0].Data[1].Converted) // will be empty because it's not a string
+
+	// Output:
+	// Log messages recorded: 1
+	// Message: "data"
+	// Level: "info"
+	// Created in last hour?: true
+	// RequestID: ""
+	// Source:
+	// 	File: "log_test.go"
+	// 	Line number: 233
+	// 	Function name: "github.com/DusanKasan/log_test.ExampleAddDataSerializationConverter"
+	// Data count: 2
+	// Data[0]:
+	// 	Type: "string"
+	// 	Marshaled: "data"
+	// 	Printed: "\"data\""
+	// 	Converted: map["myconverter":"123data"]
+	// Data[1]:
+	// 	Type: "int"
+	// 	Marshaled: 1
+	// 	Printed: "1"
+	// 	Converted: map[]
 }
 
-func parseLogs(s string) (lm logMessages, err error) {
-	jsonLogs := fmt.Sprintf("[%v]", strings.Join(strings.Split(strings.Trim(s, "\n"), "\n"), ","))
-	err = json.Unmarshal([]byte(jsonLogs), &lm)
-	return
+func BenchmarkWrites(b *testing.B) {
+	ctx := context.Background()
+	builder1 := &strings.Builder{}
+	log.SetOutput(builder1)
+
+	builder2 := &strings.Builder{}
+	log2.SetOutput(builder2)
+
+	b.Run("ThisPackage", func(bb *testing.B) {
+		for n := 0; n < bb.N; n++ {
+			builder1.Reset()
+			log.Info(ctx, n)
+		}
+	})
+
+	b.Run("NativeLog", func(bb *testing.B) {
+		for n := 0; n < bb.N; n++ {
+			builder1.Reset()
+			log2.Print(n)
+		}
+	})
 }
 
-func (m logMessage) expect(t *testing.T, expectations ...messageExpectation) {
-	for _, expectation := range expectations {
-		if errs := expectation(m); errs != nil {
-			for _, err := range errs {
-				t.Error(err.Error())
-			}
+func Benchmark10Fields(b *testing.B) {
+	ctx := context.Background()
+	builder := &strings.Builder{}
+	log.SetOutput(builder)
+
+	b.Run("ThisPackage", func(bb *testing.B) {
+		for n := 0; n < bb.N; n++ {
+			log.Info(ctx, "message", 1, 2, 3, 4, 5, 6, 7, 8, 9, 0)
 		}
-	}
+	})
+
 }
-
-func level(level string) messageExpectation {
-	return func (m logMessage) []error {
-		if m.Level != level {
-			return []error{fmt.Errorf("bad level. expected: %q, got: %q", level, m.Level)}
-		}
-
-		return nil
-	}
-}
-
-func emptyRequestID() messageExpectation {
-	return func (m logMessage) []error {
-		if m.RequestID != "" {
-			return []error{fmt.Errorf("request ID not expected. got: %q", m.RequestID)}
-		}
-
-		return nil
-	}
-}
-
-func createdBetween(from, to time.Time) messageExpectation {
-	return func (m logMessage) []error {
-		if m.Time.After(to) || m.Time.Before(from) {
-			return []error{fmt.Errorf("bad log time. expected between %v and %v, got %v", from, to, m.Time)}
-		}
-
-		return nil
-	}
-}
-
-func message(msg string) messageExpectation {
-	return func (m logMessage) []error {
-		if m.Message != msg {
-			return []error{fmt.Errorf("bad message. expected: %q, got: %q", msg, m.Message)}
-		}
-
-		return nil
-	}
-}
-
-func source(fileName string, funcName string, lineNumber int) messageExpectation {
-	return func (m logMessage) []error {
-		var errs []error
-
-		if m.Source.FunctionName != funcName {
-			errs = append(errs, fmt.Errorf("bad message source function. exepected: %q, got: %q", funcName, m.Source.FunctionName))
-		}
-
-		if m.Source.LineNumber != lineNumber {
-			errs = append(errs, fmt.Errorf("bad message source line number. exepected: %v, got: %v", lineNumber, m.Source.LineNumber))
-		}
-
-		if !strings.HasSuffix(m.Source.FilePath, fileName) {
-			errs = append(errs, fmt.Errorf("bad message source file path. exepected to end with: %q, got: %q", fileName, m.Source.FilePath))
-		}
-
-		return errs
-	}
-}
-
-func data(dd []dataItem) messageExpectation {
-	return func (m logMessage) []error {
-		if len(dd) != len(m.Data) {
-			return []error{fmt.Errorf("bad number of data items. exepected %v, got %v", len(dd), len(m.Data))}
-		}
-
-		var errs []error
-		for i, d := range dd {
-			if m.Data[i].Type != d.Type || m.Data[i].Printed != d.Printed || m.Data[i].Marshaled != d.Marshaled || len(m.Data[i].Converted) != 0 {
-				errs = append(errs, fmt.Errorf("bad message data. exepected %v, got %v", d, m.Data[i]))
-			}
-		}
-
-		return errs
-	}
-}
-

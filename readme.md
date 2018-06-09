@@ -194,6 +194,5 @@ This example contains request, json unmarshaling error and response.
 
 ## TODO
 
-- tests
-- document
-- remove skip frames?
+- document more
+- add Log(level string ...) method?

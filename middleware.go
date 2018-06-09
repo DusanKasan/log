@@ -70,7 +70,7 @@ func Middleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		requestID := generateRequestID()
 		r = r.WithContext(context.WithValue(r.Context(), keyId, string(requestID)))
-		w.Header().Set("Request-Id", string(requestID))
+		w.Header().Set("X-Request-ID", string(requestID))
 
 		buff := bufferedReadCloser{r.Body, bufio.NewReader(r.Body)}
 		r.Body = buff
